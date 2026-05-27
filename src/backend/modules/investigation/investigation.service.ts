@@ -31,6 +31,9 @@ export async function initInvestigationsSchema() {
     CREATE INDEX IF NOT EXISTS idx_investigations_tenant_created
     ON investigations(tenant_id, created_at DESC);
   `);
+  await queryControlPlanePostgres(`
+    ALTER TABLE investigations ADD COLUMN IF NOT EXISTS source VARCHAR(20) DEFAULT 'dashboard';
+  `);
 }
 
 export async function saveInvestigation(
