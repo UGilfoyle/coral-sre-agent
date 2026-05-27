@@ -67,3 +67,7 @@ tables:
         type: Utf8
       - name: last_updated_at
         type: Utf8
+test_queries:
+  - SELECT * FROM enterprise.tickets LIMIT 1
+  - SELECT * FROM enterprise.change_requests LIMIT 1
+  - SELECT * FROM enterprise.knowledge_base LIMIT 1

@@ -68,6 +68,10 @@ export function generateCoralSourceSpecs(root = projectRoot) {
   return { dataDirUri, outDir, generated };
 }
 
+function sourceNameFromFile(file) {
+  return file.replace(/\.yaml$/, '');
+}
+
 function main() {
   console.log('=== Coral SRE Agent: portable source setup ===');
 
@@ -86,13 +90,28 @@ function main() {
     process.exit(1);
   }
 
+  let failed = false;
+
   for (const { file, outPath } of generated) {
+    const name = sourceNameFromFile(file);
     try {
+      console.log(`\nLinting ${file}...`);
+      execSync(`coral source lint "${outPath}"`, { stdio: 'inherit' });
+
       console.log(`Registering ${file}...`);
       execSync(`coral source add --file "${outPath}"`, { stdio: 'inherit' });
+
+      console.log(`Testing ${name}...`);
+      execSync(`coral source test ${name}`, { stdio: 'inherit' });
     } catch (err) {
-      console.error(`❌ Failed to register ${file}:`, err.message);
+      failed = true;
+      console.error(`❌ Setup failed for ${file}:`, err.message);
     }
+  }
+
+  if (failed) {
+    console.error('\n❌ One or more Coral sources failed lint, install, or test.');
+    process.exit(1);
   }
 
   console.log('\n=== Setup complete ===');
