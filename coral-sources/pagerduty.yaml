@@ -1,0 +1,27 @@
+name: pagerduty
+version: 0.1.0
+dsl_version: 3
+backend: jsonl
+tables:
+  - name: incidents
+    description: PagerDuty triggered and acknowledged SRE incidents
+    source:
+      location: "__CORAL_DATA_URI__"
+      glob: "pagerduty_incidents.jsonl"
+    columns:
+      - name: id
+        type: Utf8
+      - name: title
+        type: Utf8
+      - name: status
+        type: Utf8
+      - name: urgency
+        type: Utf8
+      - name: created_at
+        type: Utf8
+      - name: service_name
+        type: Utf8
+      - name: assignee
+        type: Utf8
+test_queries:
+  - SELECT * FROM pagerduty.incidents LIMIT 1

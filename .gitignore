@@ -1,0 +1,12 @@
+node_modules
+dist
+.DS_Store
+
+# Secrets and local environment
+.env
+.env.local
+.env.*.local
+
+# Coral CLI specs resolved from coral-sources/ templates (pnpm run setup)
+.coral-generated/
+.tmp-setup-test-*/

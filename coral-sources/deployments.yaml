@@ -1,0 +1,27 @@
+name: deployments
+version: 0.1.0
+dsl_version: 3
+backend: jsonl
+tables:
+  - name: history
+    description: Deployment history and versions
+    source:
+      location: "__CORAL_DATA_URI__"
+      glob: "deployments_history.jsonl"
+    columns:
+      - name: id
+        type: Utf8
+      - name: service
+        type: Utf8
+      - name: version
+        type: Utf8
+      - name: status
+        type: Utf8
+      - name: deployed_at
+        type: Utf8
+      - name: changelog
+        type: Utf8
+      - name: deployed_by
+        type: Utf8
+test_queries:
+  - SELECT * FROM deployments.history LIMIT 1

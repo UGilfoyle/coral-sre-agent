@@ -1,0 +1,31 @@
+name: github
+version: 0.1.0
+dsl_version: 3
+backend: jsonl
+tables:
+  - name: builds
+    description: GitHub Actions workflow builds and statuses
+    source:
+      location: "__CORAL_DATA_URI__"
+      glob: "github_builds.jsonl"
+    columns:
+      - name: id
+        type: Utf8
+      - name: workflow_name
+        type: Utf8
+      - name: commit_sha
+        type: Utf8
+      - name: branch
+        type: Utf8
+      - name: status
+        type: Utf8
+      - name: trigger_time
+        type: Utf8
+      - name: duration_seconds
+        type: Int64
+      - name: error_log
+        type: Utf8
+      - name: triggered_by
+        type: Utf8
+test_queries:
+  - SELECT * FROM github.builds LIMIT 1

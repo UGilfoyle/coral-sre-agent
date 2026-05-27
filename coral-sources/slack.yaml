@@ -1,0 +1,27 @@
+name: slack
+version: 0.1.0
+dsl_version: 3
+backend: jsonl
+tables:
+  - name: threads
+    description: Slack channels and conversation threads for incidents
+    source:
+      location: "__CORAL_DATA_URI__"
+      glob: "slack_threads.jsonl"
+    columns:
+      - name: id
+        type: Utf8
+      - name: channel
+        type: Utf8
+      - name: ts
+        type: Utf8
+      - name: user
+        type: Utf8
+      - name: text
+        type: Utf8
+      - name: replies_count
+        type: Int64
+      - name: replies
+        type: Utf8
+test_queries:
+  - SELECT * FROM slack.threads LIMIT 1

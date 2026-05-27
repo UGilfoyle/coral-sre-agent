@@ -1,0 +1,6 @@
+{"id": "JIRA-901", "board": "Jira", "title": "Stripe Gateway Integration Adapter Refactor", "status": "Done", "priority": "P2", "assignee": "priya.sharma", "service": "payment-service", "created_at": "2026-05-25T10:00:00Z"}
+{"id": "JIRA-1024", "board": "Jira", "title": "CRITICAL: payment-service interface breaking crash", "status": "In Progress", "priority": "P0", "assignee": "priya.sharma", "service": "payment-service", "created_at": "2026-05-26T16:48:00Z"}
+{"id": "AZURE-4091", "board": "Azure Boards", "title": "CORS preflight failures for mobile clients", "status": "Done", "priority": "P1", "assignee": "rajesh.kumar", "service": "api-gateway", "created_at": "2026-05-26T07:15:00Z"}
+{"id": "CLICKUP-552", "board": "ClickUp", "title": "Verify Bcrypt password lockout rate limits", "status": "Done", "priority": "P2", "assignee": "rajesh.kumar", "service": "user-service", "created_at": "2026-05-26T08:30:00Z"}
+{"id": "LINEAR-88", "board": "Linear", "title": "Verify fallback SMS notification alerts", "status": "Done", "priority": "P3", "assignee": "vikram.patel", "service": "notification-service", "created_at": "2026-05-26T11:00:00Z"}
+{"id": "LINEAR-89", "board": "Linear", "title": "Emergency Rollback verification task", "status": "Done", "priority": "P1", "assignee": "priya.sharma", "service": "payment-service", "created_at": "2026-05-26T17:05:00Z"}

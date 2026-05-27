@@ -1,0 +1,39 @@
+{
+  "name": "coral-sre-agent",
+  "version": "1.0.0",
+  "description": "SRE Incident Response & Coding Debugger Platform using Coral",
+  "main": "src/backend/server.ts",
+  "type": "module",
+  "scripts": {
+    "server": "node --loader ts-node/esm src/backend/server.ts",
+    "client": "vite",
+    "dev": "concurrently \"pnpm run server\" \"pnpm run client\"",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "setup": "node scripts/setup.js",
+    "seed": "node scripts/seed-neon.js",
+    "test": "node --import ts-node/esm --test src/backend/shared/crypto.test.ts src/backend/shared/sql-sanitize.test.ts src/backend/shared/slack-row.test.ts src/backend/modules/integration/integration-status.test.ts src/backend/modules/integration/adapters/pagerduty.adapter.test.ts src/backend/modules/investigation/tenant-agent-config.test.ts src/backend/modules/auth/sql-guard.test.ts scripts/setup.test.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^4.19.2",
+    "lucide-react": "^0.395.0",
+    "pg": "^8.21.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.14.2",
+    "@types/pg": "^8.20.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "concurrently": "^8.2.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11"
+  }
+}

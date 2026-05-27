@@ -1,0 +1,33 @@
+name: sentry
+version: 0.1.0
+dsl_version: 3
+backend: jsonl
+tables:
+  - name: errors
+    description: Sentry unresolved and resolved SRE error exceptions
+    source:
+      location: "__CORAL_DATA_URI__"
+      glob: "sentry_errors.jsonl"
+    columns:
+      - name: id
+        type: Utf8
+      - name: issue_id
+        type: Utf8
+      - name: message
+        type: Utf8
+      - name: status
+        type: Utf8
+      - name: level
+        type: Utf8
+      - name: first_seen
+        type: Utf8
+      - name: last_seen
+        type: Utf8
+      - name: count
+        type: Int64
+      - name: metadata__culprit
+        type: Utf8
+      - name: stack_trace
+        type: Utf8
+test_queries:
+  - SELECT * FROM sentry.errors LIMIT 1
