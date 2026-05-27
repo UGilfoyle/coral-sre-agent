@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: coral-sre-agent
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false

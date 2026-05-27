@@ -34,10 +34,13 @@ import {
 
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const execAsync = promisify(exec);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
-const port = process.env.PORT || 3001;
+const port = Number(process.env.PORT) || 3001;
 
 // Slack Bolt receiver (signature-verified; must mount before global auth)
 const slackRouter = createSlackBoltRouter();
@@ -47,6 +50,15 @@ if (slackRouter) {
 
 app.use(cors());
 app.use(express.json());
+
+const distPath =
+  process.env.NODE_ENV === 'production'
+    ? path.join(__dirname, '..', '..', 'dist')
+    : null;
+
+if (distPath) {
+  app.use(express.static(distPath));
+}
 
 // Incoming Request Logging Middleware for Dev Telemetry
 app.use((req, res, next) => {
