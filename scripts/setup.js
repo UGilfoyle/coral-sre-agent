@@ -72,6 +72,26 @@ function sourceNameFromFile(file) {
   return file.replace(/\.yaml$/, '');
 }
 
+function ensureCoralPath() {
+  const home = process.env.HOME || '';
+  const extra = [
+    process.env.CORAL_INSTALL_DIR,
+    path.join(home, '.local', 'bin'),
+    '/root/.local/bin',
+    '/usr/local/bin'
+  ].filter(Boolean);
+  process.env.PATH = [...extra, process.env.PATH || ''].join(':');
+}
+
+function hasCoralCli() {
+  try {
+    execSync('coral --version', { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function main() {
   console.log('=== Coral SRE Agent: portable source setup ===');
 
@@ -81,9 +101,14 @@ function main() {
   console.log(`Data URI: ${dataDirUri}`);
   console.log(`Generated specs: ${outDir}`);
 
-  try {
-    execSync('coral --version', { stdio: 'ignore' });
-  } catch {
+  ensureCoralPath();
+
+  if (!hasCoralCli()) {
+    if (process.env.SKIP_CORAL_CLI === 'true') {
+      console.warn('⚠ Coral CLI not found — skipping source registration (SKIP_CORAL_CLI=true).');
+      console.warn('  Demo will use Neon Postgres when DATABASE_URL is set.');
+      return;
+    }
     console.error(
       '❌ Coral CLI not found. Install: brew install withcoral/tap/coral'
     );

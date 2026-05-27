@@ -10,6 +10,7 @@ dist
 # Coral CLI specs resolved from coral-sources/ templates (pnpm run setup)
 .coral-generated/
 .tmp-setup-test-*/
+.render-path
 
 # Internal docs — not for public repo
 DATABASE_GUIDE.md
