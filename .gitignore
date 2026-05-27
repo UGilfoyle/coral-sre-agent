@@ -10,3 +10,9 @@ dist
 # Coral CLI specs resolved from coral-sources/ templates (pnpm run setup)
 .coral-generated/
 .tmp-setup-test-*/
+
+# Internal docs — not for public repo
+DATABASE_GUIDE.md
+DEPLOYMENT_GUIDE.md
+implementation_plan.md
+HACKATHON_DEMO.md
