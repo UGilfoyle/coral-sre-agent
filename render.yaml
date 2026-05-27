@@ -9,7 +9,7 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: CORAL_VERSION
-        value: v0.4.0
+      - key: SKIP_CORAL_CLI
+        value: "true"
       - key: DATABASE_URL
         sync: false

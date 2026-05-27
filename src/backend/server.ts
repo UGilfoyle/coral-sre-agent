@@ -31,6 +31,7 @@ import {
   bootstrapDemoEnvironment,
   getDemoStatus
 } from './modules/demo/demo.service.js';
+import { getStaticCoralSourcesList } from './shared/coral-schema.js';
 
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -469,8 +470,14 @@ app.get('/api/schema', async (req, res) => {
 
 app.get('/api/sources', async (_req, res) => {
   try {
-    const { stdout } = await execAsync('coral source list');
-    res.json({ output: stdout.trim() });
+    let output: string;
+    try {
+      const { stdout } = await execAsync('coral source list');
+      output = stdout.trim();
+    } catch {
+      output = getStaticCoralSourcesList();
+    }
+    res.json({ output });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to retrieve sources';
     console.error(`[Coral AI Bot] Sources failed: ${message}`);

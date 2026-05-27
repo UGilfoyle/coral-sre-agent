@@ -13,6 +13,10 @@ import {
 import { saveInvestigation } from './modules/investigation/investigation.service.js';
 import { getCoralDataFile } from './shared/data-paths.js';
 import {
+  getStaticCoralColumns,
+  getStaticCoralTables
+} from './shared/coral-schema.js';
+import {
   sanitizeLevels,
   sanitizeServiceNames,
   sanitizeTimestamp,
@@ -129,6 +133,14 @@ type TableQueryFn = (
 
 export async function runCoralQuery(sql: string, tenantId: string): Promise<any[]> {
   const actualTenantId = tenantId;
+
+  if (/\bcoral\.columns\b/i.test(sql)) {
+    return getStaticCoralColumns();
+  }
+  if (/\bcoral\.tables\b/i.test(sql)) {
+    return getStaticCoralTables();
+  }
+
   if (isNeonConnected() && !/\bcoral\.(columns|tables)\b/i.test(sql)) {
     try {
       // Translate Coral table names (dot) to Postgres table names (underscore)
@@ -179,7 +191,7 @@ export async function runCoralQuery(sql: string, tenantId: string): Promise<any[
     }
   }
 
-  // Fallback to local Coral JSONL files
+  // Fallback to local Coral JSONL files via CLI
   try {
     const escapedSql = sql.replace(/"/g, '\\"');
     const { stdout } = await execAsync(`coral sql --format json "${escapedSql}"`);
@@ -192,6 +204,9 @@ export async function runCoralQuery(sql: string, tenantId: string): Promise<any[
     }
   } catch (error: any) {
     console.error(`[Coral Query Error] ${error.message}`);
+    if (isNeonConnected()) {
+      throw new Error('Query failed against Neon and Coral CLI is unavailable in this environment.');
+    }
     throw new Error(error.stdout || error.stderr || error.message);
   }
 }
