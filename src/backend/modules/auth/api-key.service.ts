@@ -24,6 +24,9 @@ export async function initApiKeysSchema() {
   await queryControlPlanePostgres(`
     CREATE INDEX IF NOT EXISTS idx_api_keys_tenant ON api_keys(tenant_id);
   `);
+  await queryControlPlanePostgres(`
+    ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS rate_limit INTEGER DEFAULT 100;
+  `);
 }
 
 function normalizeScopes(scopes?: string[]): ApiKeyScope[] {
