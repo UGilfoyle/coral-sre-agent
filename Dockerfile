@@ -30,8 +30,7 @@ COPY scripts ./scripts
 COPY index.html ./
 
 RUN pnpm run build
-RUN pnpm run setup
 
 EXPOSE 10000
 
-CMD ["pnpm", "start"]
+CMD ["bash", "scripts/render-start.sh"]

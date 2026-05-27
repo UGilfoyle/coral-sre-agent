@@ -482,7 +482,7 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'healthy', engine: 'Coral AI Bot — SRE SaaS Platform' });
 });
 
-app.listen(port, async () => {
+app.listen(port, '0.0.0.0', async () => {
   console.log(`🐚 Coral AI Bot — SRE Multi-Tenant SaaS Platform`);
   console.log(`   Server running on http://localhost:${port}`);
   console.log(`   POST /auth/login  — Mock SSO authentication portal`);

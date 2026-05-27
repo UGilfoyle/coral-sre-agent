@@ -1,8 +1,10 @@
 services:
   - type: web
     name: coral-sre-agent
-    runtime: docker
+    runtime: node
     plan: free
+    buildCommand: bash scripts/render-build.sh
+    startCommand: bash scripts/render-start.sh
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV

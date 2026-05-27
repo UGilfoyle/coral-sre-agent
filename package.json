@@ -4,6 +4,9 @@
   "description": "SRE Incident Response & Coding Debugger Platform using Coral",
   "main": "src/backend/server.ts",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "server": "node --watch --loader ts-node/esm src/backend/server.ts",
     "client": "vite",
