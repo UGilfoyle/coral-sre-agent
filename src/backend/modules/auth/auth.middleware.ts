@@ -77,8 +77,14 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     return next();
   }
 
-  // Allow unauthenticated bypass for health, login, and stripe webhooks
-  const bypassPaths = ['/api/health', '/api/auth/login', '/webhooks/stripe'];
+  // Allow unauthenticated bypass for health, login, stripe webhooks, and Slack bot
+  const bypassPaths = [
+    '/api/health',
+    '/api/auth/login',
+    '/webhooks/stripe',
+    '/api/slack/events',
+    '/api/slack/oauth/callback'
+  ];
   const isBypass = bypassPaths.some(p => req.path.startsWith(p));
   
   if (isBypass) {

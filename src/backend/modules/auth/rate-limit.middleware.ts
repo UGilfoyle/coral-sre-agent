@@ -63,3 +63,29 @@ export function rateLimit(routeLabel: string) {
 export function resetRateLimitBuckets() {
   buckets.clear();
 }
+
+export function checkTenantRateLimit(
+  tenantId: string,
+  routeLabel: string,
+  limit = DEFAULT_LIMIT
+): { allowed: boolean; retryAfterSeconds?: number } {
+  const key = getBucketKey(tenantId, routeLabel);
+  const now = Date.now();
+
+  let bucket = buckets.get(key);
+  if (!bucket || now >= bucket.resetAt) {
+    bucket = { count: 0, resetAt: now + WINDOW_MS };
+    buckets.set(key, bucket);
+  }
+
+  bucket.count += 1;
+
+  if (bucket.count > limit) {
+    return {
+      allowed: false,
+      retryAfterSeconds: Math.ceil((bucket.resetAt - now) / 1000)
+    };
+  }
+
+  return { allowed: true };
+}

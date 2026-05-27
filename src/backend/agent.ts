@@ -26,7 +26,7 @@ export interface TimelineEvent {
   time: string;
   title: string;
   desc: string;
-  type: 'alert' | 'deploy' | 'error' | 'success';
+  type: 'alert' | 'deploy' | 'rollback' | 'error' | 'success';
 }
 
 export interface RootCause {

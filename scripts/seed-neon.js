@@ -21,6 +21,11 @@ if (!connectionString) {
 
 const dataDir = path.join(projectRoot, 'src', 'backend', 'data');
 
+/** JSONL/Coral use `user`; Postgres column is `username`. Live adapter rows may use `username` only. */
+function slackUsernameFromRow(row) {
+  return row.user ?? row.username ?? null;
+}
+
 // Default Seed Tenant details
 const SEED_TENANT_ID = '00000000-0000-0000-0000-000000000000';
 const SEED_USER_ID = '11111111-1111-1111-1111-111111111111';

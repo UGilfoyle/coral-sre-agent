@@ -5,16 +5,17 @@
   "main": "src/backend/server.ts",
   "type": "module",
   "scripts": {
-    "server": "node --loader ts-node/esm src/backend/server.ts",
+    "server": "node --watch --loader ts-node/esm src/backend/server.ts",
     "client": "vite",
     "dev": "concurrently \"pnpm run server\" \"pnpm run client\"",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "setup": "node scripts/setup.js",
     "seed": "node scripts/seed-neon.js",
-    "test": "node --import ts-node/esm --test src/backend/shared/crypto.test.ts src/backend/shared/sql-sanitize.test.ts src/backend/shared/slack-row.test.ts src/backend/modules/integration/integration-status.test.ts src/backend/modules/integration/adapters/pagerduty.adapter.test.ts src/backend/modules/investigation/tenant-agent-config.test.ts src/backend/modules/auth/sql-guard.test.ts scripts/setup.test.js"
+    "test": "node --import ts-node/esm --test src/backend/shared/crypto.test.ts src/backend/shared/sql-sanitize.test.ts src/backend/shared/slack-row.test.ts src/backend/modules/slack/slack-blocks.test.ts src/backend/modules/integration/integration-status.test.ts src/backend/modules/integration/adapters/pagerduty.adapter.test.ts src/backend/modules/investigation/tenant-agent-config.test.ts src/backend/modules/auth/sql-guard.test.ts scripts/setup.test.js"
   },
   "dependencies": {
+    "@slack/bolt": "^4.7.2",
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
     "express": "^4.19.2",

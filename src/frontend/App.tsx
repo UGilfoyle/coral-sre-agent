@@ -4,6 +4,8 @@ import {
   Database, AlertTriangle, ChevronRight, Layers, Search, Zap, BookOpen,
   Sun, Moon, LogOut, Plug, History, Key
 } from 'lucide-react';
+import { parseJsonResponse, apiJson } from './lib/api';
+import { DemoSetupPanel, type DemoStatus } from './components/DemoSetupPanel';
 
 
 /* ───── Types ───── */
@@ -97,7 +99,18 @@ export default function App() {
   const [schema, setSchema] = useState<any[]>([]);
   const [sources, setSources] = useState<string>('');
 
+  const [apiHealth, setApiHealth] = useState<'checking' | 'online' | 'offline'>('checking');
+  const [demoStatus, setDemoStatus] = useState<DemoStatus | null>(null);
+  const [demoLoading, setDemoLoading] = useState(false);
+  const [demoBootstrapping, setDemoBootstrapping] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  function showToast(message: string) {
+    setToast(message);
+    window.setTimeout(() => setToast(null), 5000);
+  }
 
   // Authenticated dynamic API Fetch Wrapper
   async function apiFetch(url: string, options: RequestInit = {}): Promise<Response> {
@@ -138,20 +151,62 @@ export default function App() {
 
   async function loadSessionContext() {
     try {
-      const res = await apiFetch('/api/v1/auth/me');
+      const { res, data } = await apiJson(apiFetch, '/api/v1/auth/me');
       if (res.ok) {
-        const data = await res.json();
         setUser(data.user);
         setTenant(data.tenant);
         setIsAuthenticated(true);
         return true;
-      } else {
-        setIsAuthenticated(false);
-        return false;
       }
+      setIsAuthenticated(false);
+      return false;
     } catch {
       setIsAuthenticated(false);
       return false;
+    }
+  }
+
+  async function checkApiHealth() {
+    try {
+      const res = await fetch('/api/health');
+      const data = await parseJsonResponse(res);
+      setApiHealth(res.ok ? 'online' : 'offline');
+      return data;
+    } catch {
+      setApiHealth('offline');
+      return null;
+    }
+  }
+
+  async function loadDemoStatus() {
+    setDemoLoading(true);
+    try {
+      const { res, data } = await apiJson(apiFetch, '/api/v1/demo/status');
+      if (res.ok) setDemoStatus(data);
+    } catch (e) {
+      console.error('Demo status failed:', e);
+    } finally {
+      setDemoLoading(false);
+    }
+  }
+
+  async function bootstrapDemo() {
+    setDemoBootstrapping(true);
+    try {
+      const { res, data } = await apiJson(apiFetch, '/api/v1/demo/bootstrap', { method: 'POST' });
+      if (!res.ok) throw new Error(data.error || 'Bootstrap failed');
+      setDemoStatus(data);
+      await loadDashboard();
+      showToast(
+        data.ready
+          ? 'Demo environment ready — all 5 integrations connected with sandbox data.'
+          : `Partial setup: ${data.connectedCount}/${data.totalProviders} sources connected.`
+      );
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Bootstrap failed';
+      showToast(msg);
+    } finally {
+      setDemoBootstrapping(false);
     }
   }
 
@@ -159,6 +214,8 @@ export default function App() {
     if (isAuthenticated) {
       loadSessionContext().then((success) => {
         if (success) {
+          checkApiHealth();
+          loadDemoStatus();
           loadDashboard();
           loadSchema();
           loadSources();
@@ -166,6 +223,23 @@ export default function App() {
       });
     }
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const slackStatus = params.get('slack');
+    if (!slackStatus) return;
+
+    const message = params.get('message') || '';
+    if (slackStatus === 'connected') {
+      const team = params.get('team') || 'Slack workspace';
+      alert(`Slack bot connected to ${decodeURIComponent(team)}.${message ? `\n${decodeURIComponent(message)}` : ''}`);
+      setTab('integrations');
+    } else if (slackStatus === 'error') {
+      alert(`Slack connection failed: ${decodeURIComponent(message || 'Unknown error')}`);
+    }
+
+    window.history.replaceState({}, '', window.location.pathname);
+  }, []);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -184,7 +258,7 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: emailToUse, name: nameToUse }),
       });
-      const data = await res.json();
+      const data = await parseJsonResponse(res);
       if (res.ok) {
         localStorage.setItem('coral-session-token', data.token);
         setSessionToken(data.token);
@@ -242,7 +316,7 @@ export default function App() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sql }),
     });
-    const data = await res.json();
+    const data = await parseJsonResponse(res);
     if (!res.ok) throw new Error(data.error);
 
     setTelemetryLogs(prev => [
@@ -282,9 +356,8 @@ export default function App() {
 
   async function loadSchema() {
     try {
-      const res = await apiFetch('/api/schema');
-      const data = await res.json();
-      setSchema(data.tables || []);
+      const { res, data } = await apiJson(apiFetch, '/api/schema');
+      if (res.ok) setSchema(data.tables || []);
     } catch (e) {
       console.error('Schema load failed:', e);
     }
@@ -292,9 +365,8 @@ export default function App() {
 
   async function loadSources() {
     try {
-      const res = await apiFetch('/api/sources');
-      const data = await res.json();
-      setSources(data.output || '');
+      const { res, data } = await apiJson(apiFetch, '/api/sources');
+      if (res.ok) setSources(data.output || '');
     } catch (e) {
       console.error('Sources load failed:', e);
     }
@@ -335,7 +407,7 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: text }),
       });
-      const data = await res.json();
+      const data = await parseJsonResponse(res);
       if (res.ok) {
         setMessages([
           ...updated,
@@ -351,8 +423,21 @@ export default function App() {
           },
         ]);
         loadDashboard();
+        loadDemoStatus();
       } else {
-        setMessages([...updated, { role: 'assistant', content: `Investigation failed: ${data.error}` }]);
+        const errText = data.error || 'Investigation failed';
+        const needsDemo =
+          res.status === 422 || String(errText).toLowerCase().includes('no data sources');
+        setMessages([
+          ...updated,
+          {
+            role: 'assistant',
+            content: needsDemo
+              ? `${errText}\n\nTip: Open **Incident Overview** and click **Load demo environment**, or connect integrations in Integration Hub (Sandbox Demo).`
+              : `Investigation failed: ${errText}`,
+          },
+        ]);
+        if (needsDemo) showToast('Connect demo sources first — use Load demo environment on Overview.');
       }
     } catch (e: any) {
       setMessages([...updated, { role: 'assistant', content: `Connection error: ${e.message}` }]);
@@ -485,7 +570,7 @@ export default function App() {
           <span className="topbar-breadcrumb">
             {tab === 'overview' && 'Incident Overview'}
             {tab === 'history' && 'Investigation History'}
-            {tab === 'investigate' && 'SQL Console'}
+            {tab === 'investigate' && 'SQL Workspace'}
             {tab === 'sql' && 'SQL Console'}
             {tab === 'sources' && 'Connected Sources'}
             {tab === 'integrations' && 'Integration Hub'}
@@ -534,10 +619,27 @@ export default function App() {
           >
             {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
           </button>
-          <span className="status-pill status-pill--live">Coral Engine Active</span>
-          <span className="status-pill status-pill--info">SaaS Pool</span>
+          <span
+            className={`status-pill ${
+              apiHealth === 'online'
+                ? 'status-pill--live'
+                : apiHealth === 'offline'
+                  ? 'status-pill--danger'
+                  : 'status-pill--info'
+            }`}
+            title={apiHealth === 'offline' ? 'Start backend: pnpm dev' : 'API healthy'}
+          >
+            {apiHealth === 'online' ? 'API Online' : apiHealth === 'offline' ? 'API Offline' : 'Checking…'}
+          </span>
+          <span className="status-pill status-pill--info">Coral Engine</span>
         </div>
       </header>
+
+      {toast && (
+        <div className="app-toast" role="status">
+          {toast}
+        </div>
+      )}
 
       {/* Workspace Grid */}
       <div className="workspace">
@@ -549,7 +651,7 @@ export default function App() {
               {([
                 ['overview', Server, 'Incident Overview'],
                 ['history', History, 'Investigation History'],
-                ['investigate', Terminal, 'SQL Console'],
+                ['investigate', Terminal, 'SQL Workspace'],
                 ['sources', Database, 'Connected Sources'],
                 ['integrations', Plug, 'Integration Hub'],
                 ...(user?.role === 'owner' || user?.role === 'admin'
@@ -603,7 +705,23 @@ export default function App() {
 
         {/* Main Content */}
         <main className="main-content">
-          {tab === 'overview' && <OverviewTab stats={stats} sendToAgent={sendToAgent} apiFetch={apiFetch} runSql={(q: string) => { setTab('investigate'); setSqlInput(q); setTimeout(() => runSql(q), 100); }} />}
+          {tab === 'overview' && (
+            <OverviewTab
+              stats={stats}
+              sendToAgent={sendToAgent}
+              apiFetch={apiFetch}
+              runSql={(q: string) => {
+                setTab('investigate');
+                setSqlInput(q);
+                setTimeout(() => runSql(q), 100);
+              }}
+              demoStatus={demoStatus}
+              demoLoading={demoLoading}
+              demoBootstrapping={demoBootstrapping}
+              onBootstrap={bootstrapDemo}
+              onOpenIntegrations={() => setTab('integrations')}
+            />
+          )}
           {tab === 'investigate' && (
             <SqlTab
               sqlInput={sqlInput}
@@ -616,7 +734,7 @@ export default function App() {
             />
           )}
           {tab === 'sources' && <SourcesTab apiFetch={apiFetch} sources={sources} schema={schema} />}
-          {tab === 'integrations' && <IntegrationsTab apiFetch={apiFetch} />}
+          {tab === 'integrations' && <IntegrationsTab apiFetch={apiFetch} user={user} />}
           {tab === 'history' && <InvestigationHistoryTab apiFetch={apiFetch} />}
           {tab === 'api-keys' && (user?.role === 'owner' || user?.role === 'admin') && (
             <ApiKeysTab apiFetch={apiFetch} user={user} />
@@ -762,11 +880,26 @@ export default function App() {
    Sub-components
    =================================================================== */
 
-function OverviewTab({ stats, sendToAgent, runSql, apiFetch }: {
+function OverviewTab({
+  stats,
+  sendToAgent,
+  runSql,
+  apiFetch,
+  demoStatus,
+  demoLoading,
+  demoBootstrapping,
+  onBootstrap,
+  onOpenIntegrations
+}: {
   stats: { activeIncidents: string; unresolvedErrors: string; latestDeploy: string; ciPassRate: string };
   sendToAgent: (p: string) => void;
   runSql: (q: string) => void;
   apiFetch: (url: string, options?: RequestInit) => Promise<Response>;
+  demoStatus: DemoStatus | null;
+  demoLoading: boolean;
+  demoBootstrapping: boolean;
+  onBootstrap: () => void;
+  onOpenIntegrations: () => void;
 }) {
   const [incidents, setIncidents] = useState<any[]>([]);
   const [deploys, setDeploys] = useState<any[]>([]);
@@ -787,6 +920,15 @@ function OverviewTab({ stats, sendToAgent, runSql, apiFetch }: {
 
   return (
     <>
+      <DemoSetupPanel
+        demoStatus={demoStatus}
+        loading={demoLoading}
+        bootstrapping={demoBootstrapping}
+        onBootstrap={onBootstrap}
+        onRunInvestigation={(prompt) => sendToAgent(prompt)}
+        onOpenIntegrations={onOpenIntegrations}
+      />
+
       {/* Metrics */}
       <div className="metrics-grid">
         <div className="card metric">
@@ -1212,9 +1354,11 @@ function TelemetryTab({ logs }: { logs: any[] }) {
 }
 
 /* ───── SaaS Integrations Hub Console Tab Component ───── */
-function IntegrationsTab({ apiFetch }: { apiFetch: any }) {
+function IntegrationsTab({ apiFetch, user }: { apiFetch: any; user: any }) {
   const [integrations, setIntegrations] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [slackBot, setSlackBot] = React.useState<any>(null);
+  const [addingSlack, setAddingSlack] = React.useState(false);
   const [activeConfigModal, setActiveConfigModal] = React.useState<string | null>(null);
   
   // Form states for credentials input
@@ -1258,8 +1402,20 @@ function IntegrationsTab({ apiFetch }: { apiFetch: any }) {
     }
   };
 
+  const fetchSlackBotStatus = async () => {
+    try {
+      const res = await apiFetch('/api/v1/slack/bot/status');
+      if (res.ok) {
+        setSlackBot(await res.json());
+      }
+    } catch {
+      /* optional — bot status is additive */
+    }
+  };
+
   React.useEffect(() => {
     fetchIntegrationsList();
+    fetchSlackBotStatus();
   }, []);
 
   const openConfig = (provider: string, current: any) => {
@@ -1357,6 +1513,22 @@ function IntegrationsTab({ apiFetch }: { apiFetch: any }) {
       }));
     } finally {
       setPingingMap(prev => ({ ...prev, [provider]: false }));
+    }
+  };
+
+  const handleAddToSlack = async () => {
+    setAddingSlack(true);
+    try {
+      const res = await apiFetch('/api/v1/slack/oauth/start');
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to start Slack OAuth');
+      }
+      window.location.href = data.url;
+    } catch (err: any) {
+      alert(`Add to Slack failed: ${err.message}`);
+    } finally {
+      setAddingSlack(false);
     }
   };
 
@@ -1536,6 +1708,55 @@ function IntegrationsTab({ apiFetch }: { apiFetch: any }) {
               <p className="provider-desc" style={{ fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: '1.45', margin: 0, flexGrow: 1 }}>
                 {brand.desc}
               </p>
+
+              {integ.provider === 'slack' && (
+                <div
+                  style={{
+                    marginTop: '4px',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border)',
+                    backgroundColor: 'var(--bg-elevated)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                    <div>
+                      <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                        Slack Bot (Phase 4)
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                        {slackBot?.installed
+                          ? `Installed in ${slackBot.teamName || slackBot.teamId}`
+                          : 'Install the bot to run investigations from Slack.'}
+                      </div>
+                    </div>
+                    {(user?.role === 'owner' || user?.role === 'admin') && slackBot?.oauthConfigured && (
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        onClick={handleAddToSlack}
+                        disabled={addingSlack}
+                        style={{ whiteSpace: 'nowrap', fontSize: '11px', padding: '6px 10px' }}
+                      >
+                        {addingSlack ? 'Redirecting…' : slackBot?.installed ? 'Reinstall Bot' : 'Add to Slack'}
+                      </button>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', lineHeight: 1.5 }}>
+                    Slash command: <code className="mono">/coral investigate payment-service errors</code>
+                    {' · '}
+                    Mention <code className="mono">@Coral</code> in a channel with your query.
+                  </div>
+                  {!slackBot?.oauthConfigured && (
+                    <div style={{ fontSize: '11px', color: 'var(--warning)' }}>
+                      Set SLACK_CLIENT_ID, SLACK_CLIENT_SECRET, and SLACK_SIGNING_SECRET on the server to enable OAuth.
+                    </div>
+                  )}
+                </div>
+              )}
 
               {isConnected && (
                 <div

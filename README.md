@@ -116,6 +116,28 @@ coral source list
 coral sql "SELECT p.title, d.version FROM pagerduty.incidents p JOIN deployments.history d ON p.service_name = d.service"
 ```
 
+### Slack Bot (Phase 4)
+
+1. Create a Slack app at [api.slack.com/apps](https://api.slack.com/apps)
+2. Add **OAuth scopes**: `chat:write`, `commands`, `app_mentions:read`, `channels:history`, `channels:read`
+3. Enable **Event Subscriptions** → Request URL: `https://YOUR_APP/api/slack/events` (use ngrok locally)
+4. Subscribe to bot event: `app_mention`
+5. Create slash command `/coral` → Request URL: same events endpoint
+6. Set redirect URL: `http://localhost:3001/api/slack/oauth/callback`
+7. Add to `.env`:
+   ```bash
+   SLACK_CLIENT_ID=...
+   SLACK_CLIENT_SECRET=...
+   SLACK_SIGNING_SECRET=...
+   APP_URL=http://localhost:3001
+   FRONTEND_URL=http://localhost:3000
+   ```
+8. In the dashboard → **Integration Hub** → Slack card → **Add to Slack**
+
+**Usage in Slack:**
+- `/coral investigate payment-service errors after 16:00`
+- `@Coral why did payment-service fail?`
+
 ## Demo Scenarios
 
 ### 1. Production Outage Investigation

@@ -20,6 +20,17 @@ import {
   disconnectIntegration, 
   checkIntegrationHealth 
 } from './modules/integration/integration.service.js';
+import { createSlackBoltRouter, slackBotEnabled } from './modules/slack/slack-bolt.app.js';
+import {
+  buildSlackOAuthUrl,
+  getSlackBotStatus,
+  handleSlackOAuthCallback,
+  isSlackOAuthConfigured
+} from './modules/slack/slack-install.service.js';
+import {
+  bootstrapDemoEnvironment,
+  getDemoStatus
+} from './modules/demo/demo.service.js';
 
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -27,6 +38,12 @@ import { promisify } from 'util';
 const execAsync = promisify(exec);
 const app = express();
 const port = process.env.PORT || 3001;
+
+// Slack Bolt receiver (signature-verified; must mount before global auth)
+const slackRouter = createSlackBoltRouter();
+if (slackRouter) {
+  app.use(slackRouter);
+}
 
 app.use(cors());
 app.use(express.json());
@@ -293,6 +310,96 @@ app.delete('/api/v1/api-keys/:id', requireRole(['owner', 'admin']), async (req, 
   }
 });
 
+/* ───── SLACK BOT (PHASE 4) ───── */
+
+app.get('/api/v1/slack/bot/status', async (req, res) => {
+  if (!req.tenantId) {
+    return res.status(400).json({ error: 'Active tenant scope not resolved.' });
+  }
+
+  try {
+    const status = await getSlackBotStatus(req.tenantId);
+    res.json({
+      ...status,
+      botEventsEnabled: slackBotEnabled(),
+      oauthStartPath: '/api/v1/slack/oauth/start'
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to load Slack bot status';
+    res.status(500).json({ error: message });
+  }
+});
+
+app.get('/api/v1/slack/oauth/start', requireRole(['owner', 'admin']), async (req, res) => {
+  if (!req.tenantId) {
+    return res.status(400).json({ error: 'Active tenant scope not resolved.' });
+  }
+
+  if (!isSlackOAuthConfigured()) {
+    return res.status(503).json({
+      error: 'Slack OAuth is not configured. Set SLACK_CLIENT_ID and SLACK_CLIENT_SECRET on the server.'
+    });
+  }
+
+  try {
+    const url = buildSlackOAuthUrl(req.tenantId);
+    res.json({ url });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to start Slack OAuth';
+    res.status(500).json({ error: message });
+  }
+});
+
+app.get('/api/slack/oauth/callback', async (req, res) => {
+  const { code, state, error } = req.query;
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+  if (typeof error === 'string') {
+    return res.redirect(`${frontendUrl}?slack=error&message=${encodeURIComponent(error)}`);
+  }
+
+  if (typeof code !== 'string' || typeof state !== 'string') {
+    return res.redirect(`${frontendUrl}?slack=error&message=${encodeURIComponent('Missing OAuth code or state')}`);
+  }
+
+  try {
+    const result = await handleSlackOAuthCallback(code, state);
+    const message = encodeURIComponent(`Connected to ${result.teamName}`);
+    res.redirect(`${frontendUrl}?slack=connected&team=${encodeURIComponent(result.teamName)}&message=${message}`);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Slack OAuth failed';
+    res.redirect(`${frontendUrl}?slack=error&message=${encodeURIComponent(message)}`);
+  }
+});
+
+/* ───── HACKATHON DEMO MODE ───── */
+
+app.get('/api/v1/demo/status', async (req, res) => {
+  if (!req.tenantId) {
+    return res.status(400).json({ error: 'Active tenant scope not resolved.' });
+  }
+  try {
+    const status = await getDemoStatus(req.tenantId);
+    res.json(status);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to load demo status';
+    res.status(500).json({ error: message });
+  }
+});
+
+app.post('/api/v1/demo/bootstrap', requireRole(['owner', 'admin', 'member']), async (req, res) => {
+  if (!req.tenantId) {
+    return res.status(400).json({ error: 'Active tenant scope not resolved.' });
+  }
+  try {
+    const result = await bootstrapDemoEnvironment(req.tenantId);
+    res.json(result);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Demo bootstrap failed';
+    res.status(500).json({ error: message });
+  }
+});
+
 /* ───── SECURED SRE ENDPOINTS (COPIED & INTEGRATED WITH AUTH) ───── */
 
 app.post('/api/query', requireRole(['owner', 'admin', 'member']), rateLimit('query'), sqlGuard, async (req, res) => {
@@ -371,6 +478,12 @@ app.listen(port, async () => {
   console.log(`   POST /api/agent   — Secured incident investigation`);
   console.log(`   POST /api/query   — Secured Coral SQL execution`);
   console.log(`   GET  /api/health  — Health check`);
+  if (slackBotEnabled()) {
+    console.log(`   POST /api/slack/events — Slack slash commands & mentions`);
+  }
+  if (isSlackOAuthConfigured()) {
+    console.log(`   GET  /api/v1/slack/oauth/start — Add to Slack OAuth`);
+  }
   
   const dbConnected = await testConnection();
   if (dbConnected) {
