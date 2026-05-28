@@ -15,27 +15,44 @@ type SandboxTableConfig = {
   getParams: (row: any, tenantId: string) => any[];
 };
 
+/**
+ * Calculates a dynamic timestamp offset so that all mock incident dates (May 26, 2026)
+ * happen EXACTLY relative to the current actual system time.
+ */
+function offsetTimestamp(rawTime: string | Date | undefined): string {
+  if (!rawTime) return new Date().toISOString();
+  const timeMs = new Date(rawTime).getTime();
+  if (isNaN(timeMs)) return new Date().toISOString();
+  
+  // Base date of the SRE mock dataset (May 26, 2026 at 17:00 UTC)
+  const baseTime = new Date('2026-05-26T17:00:00Z').getTime();
+  const now = Date.now();
+  const offset = now - baseTime;
+  
+  return new Date(timeMs + offset).toISOString();
+}
+
 const SANDBOX_TABLES: SandboxTableConfig[] = [
   {
     tableName: 'deployments_history',
     filename: 'deployments_history.jsonl',
     insertQuery:
       'INSERT INTO deployments_history (id, tenant_id, service, version, status, deployed_at, changelog, deployed_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (id) DO NOTHING',
-    getParams: (row, tenantId) => [row.id, tenantId, row.service, row.version, row.status, row.deployed_at, row.changelog, row.deployed_by]
+    getParams: (row, tenantId) => [row.id, tenantId, row.service, row.version, row.status, offsetTimestamp(row.deployed_at), row.changelog, row.deployed_by]
   },
   {
     tableName: 'github_builds',
     filename: 'github_builds.jsonl',
     insertQuery:
       'INSERT INTO github_builds (id, tenant_id, workflow_name, commit_sha, branch, status, trigger_time, duration_seconds, error_log, triggered_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT (id) DO NOTHING',
-    getParams: (row, tenantId) => [row.id, tenantId, row.workflow_name, row.commit_sha, row.branch, row.status, row.trigger_time, row.duration_seconds, row.error_log, row.triggered_by]
+    getParams: (row, tenantId) => [row.id, tenantId, row.workflow_name, row.commit_sha, row.branch, row.status, offsetTimestamp(row.trigger_time), row.duration_seconds, row.error_log, row.triggered_by]
   },
   {
     tableName: 'sentry_errors',
     filename: 'sentry_errors.jsonl',
     insertQuery:
       'INSERT INTO sentry_errors (id, tenant_id, issue_id, message, status, level, first_seen, last_seen, count, metadata__culprit, stack_trace) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT (id) DO NOTHING',
-    getParams: (row, tenantId) => [row.id, tenantId, row.issue_id, row.message, row.status, row.level, row.first_seen, row.last_seen, row.count, row.metadata__culprit, row.stack_trace]
+    getParams: (row, tenantId) => [row.id, tenantId, row.issue_id, row.message, row.status, row.level, offsetTimestamp(row.first_seen), offsetTimestamp(row.last_seen), row.count, row.metadata__culprit, row.stack_trace]
   },
   {
     tableName: 'slack_threads',
@@ -46,7 +63,7 @@ const SANDBOX_TABLES: SandboxTableConfig[] = [
       row.id,
       tenantId,
       row.channel,
-      row.ts,
+      offsetTimestamp(row.ts),
       slackUsernameFromRow(row),
       row.text,
       row.replies_count,
@@ -58,28 +75,28 @@ const SANDBOX_TABLES: SandboxTableConfig[] = [
     filename: 'pagerduty_incidents.jsonl',
     insertQuery:
       'INSERT INTO pagerduty_incidents (id, tenant_id, title, status, urgency, created_at, service_name, assignee) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (id) DO NOTHING',
-    getParams: (row, tenantId) => [row.id, tenantId, row.title, row.status, row.urgency, row.created_at, row.service_name, row.assignee]
+    getParams: (row, tenantId) => [row.id, tenantId, row.title, row.status, row.urgency, offsetTimestamp(row.created_at), row.service_name, row.assignee]
   },
   {
     tableName: 'enterprise_tickets',
     filename: 'enterprise_tickets.jsonl',
     insertQuery:
       'INSERT INTO enterprise_tickets (id, tenant_id, board, title, status, priority, assignee, service, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (id) DO NOTHING',
-    getParams: (row, tenantId) => [row.id, tenantId, row.board, row.title, row.status, row.priority, row.assignee, row.service, row.created_at]
+    getParams: (row, tenantId) => [row.id, tenantId, row.board, row.title, row.status, row.priority, row.assignee, row.service, offsetTimestamp(row.created_at)]
   },
   {
     tableName: 'enterprise_change_requests',
     filename: 'enterprise_change_requests.jsonl',
     insertQuery:
       'INSERT INTO enterprise_change_requests (id, tenant_id, system, service, version, status, requester, scheduled_at, risk_level) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (id) DO NOTHING',
-    getParams: (row, tenantId) => [row.id, tenantId, row.system, row.service, row.version, row.status, row.requester, row.scheduled_at, row.risk_level]
+    getParams: (row, tenantId) => [row.id, tenantId, row.system, row.service, row.version, row.status, row.requester, offsetTimestamp(row.scheduled_at), row.risk_level]
   },
   {
     tableName: 'enterprise_knowledge_base',
     filename: 'enterprise_knowledge_base.jsonl',
     insertQuery:
       'INSERT INTO enterprise_knowledge_base (id, tenant_id, platform, title, service, runbook_steps, last_updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO NOTHING',
-    getParams: (row, tenantId) => [row.id, tenantId, row.platform, row.title, row.service, row.runbook_steps, row.last_updated_at]
+    getParams: (row, tenantId) => [row.id, tenantId, row.platform, row.title, row.service, row.runbook_steps, offsetTimestamp(row.last_updated_at)]
   }
 ];
 
@@ -133,11 +150,14 @@ async function seedTableForTenant(tenantId: string, config: SandboxTableConfig):
 
 /**
  * Loads Quest Global demo JSONL datasets into the connecting tenant's RLS scope.
- * Idempotent — skips tables that already have rows for this tenant.
+ * Supports force refresh by clearing existing tenant rows before inserting.
  */
-export async function provisionSandboxDataForTenant(tenantId: string): Promise<{ tablesSeeded: number; rowsInserted: number }> {
+export async function provisionSandboxDataForTenant(
+  tenantId: string,
+  forceRefresh: boolean = false
+): Promise<{ tablesSeeded: number; rowsInserted: number }> {
   if (!isNeonConnected()) {
-    console.log('ℹ️ [Sandbox] Neon inactive — demo queries will use local Coral JSONL.');
+    console.log('ℹ [Sandbox] Neon inactive — demo queries will use local Coral JSONL.');
     return { tablesSeeded: 0, rowsInserted: 0 };
   }
 
@@ -146,16 +166,21 @@ export async function provisionSandboxDataForTenant(tenantId: string): Promise<{
 
   for (const config of SANDBOX_TABLES) {
     try {
-      const hasRows = await tenantTableHasRows(tenantId, config.tableName);
-      if (hasRows) {
-        continue;
+      if (forceRefresh) {
+        // Safe relative delete bound strictly to tenant context
+        await queryTenantPostgres(tenantId, `DELETE FROM ${config.tableName}`);
+      } else {
+        const hasRows = await tenantTableHasRows(tenantId, config.tableName);
+        if (hasRows) {
+          continue;
+        }
       }
 
       const count = await seedTableForTenant(tenantId, config);
       if (count > 0) {
         tablesSeeded++;
         rowsInserted += count;
-        console.log(`  ✓ [Sandbox] Seeded ${count} rows into ${config.tableName} for tenant ${tenantId}`);
+        console.log(`  ✓ [Sandbox] Seeded ${count} relative-time rows into ${config.tableName} for tenant ${tenantId}`);
       }
     } catch (err: any) {
       if (err.message?.includes('does not exist')) {

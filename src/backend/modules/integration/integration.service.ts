@@ -140,13 +140,7 @@ export async function connectIntegration(
     JSON.stringify(finalConfig)
   ]);
 
-  if (mode === 'simulated') {
-    await queryControlPlanePostgres(
-      'UPDATE integrations SET access_token_enc = NULL WHERE tenant_id = $1 AND provider = $2',
-      [tenantId, provider]
-    );
-    await provisionSandboxDataForTenant(tenantId);
-  }
+  await provisionSandboxDataForTenant(tenantId, true);
 
   return { success: true, provider, status: toPublicIntegrationStatus(true, finalConfig) };
 }
